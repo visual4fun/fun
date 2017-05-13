@@ -160,7 +160,7 @@ public:
 		for (auto &a : points) {
 			a = a / 10;
 		}
-		
+
 		/*Predefined colors of cube*/
 		float colours[108] = {
 			/*1.first*/
@@ -228,6 +228,14 @@ public:
 		m_p[1] = pos.at(1);
 		m_p[2] = pos.at(2);
 
+		m_v[0] = 0.f;
+		m_v[1] = 0.f;
+		m_v[2] = 0.f;
+
+		m_a[0] = 0.f;
+		m_a[1] = 0.f;
+		m_a[2] = 0.f;
+
 		m_roll = rot.at(0);
 		m_pitch = rot.at(1);
 		m_yaw = rot.at(2);
@@ -263,8 +271,25 @@ public:
 		rotX(m_points, sizeof(m_points) / sizeof(float), m_roll * ts);
 		rotY(m_points, sizeof(m_points) / sizeof(float), m_yaw * ts);
 		rotZ(m_points, sizeof(m_points) / sizeof(float), m_pitch * ts);
-		translate(m_points, sizeof(m_points) / (sizeof(float) * 3), m_p);
 
+		m_a[1] = -1.0;
+
+		m_p[0] += m_v[0] * ts;
+		m_p[1] += m_v[1] * ts;
+		m_p[2] += m_v[2] * ts;
+
+		m_v[0] += m_a[0] * ts;
+		m_v[1] += m_a[1] * ts;
+		m_v[2] += m_a[2] * ts;
+
+		for (int pnt = 0; pnt < sizeof(m_points) / sizeof(float); pnt+=3) {
+			if (m_points[pnt + 1] + m_p[1] <= -1.0 && m_v[1] < 0.0) {
+				m_v[1] = -1.0*m_v[1]*0.90f;
+				break;
+			}
+		}
+
+		translate(m_points, sizeof(m_points) / (sizeof(float) * 3), m_p);
 
 		glBindBuffer(GL_ARRAY_BUFFER, m_pvbo);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(m_points), m_points, GL_STATIC_DRAW);
@@ -283,7 +308,7 @@ public:
 int cube::nrOfCubes = 0;
 float mpos_x = 0.0;
 float mpos_y = 0.0;
-int W = 1920;
+int W = 1080;
 int H = 1080;
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
@@ -357,7 +382,12 @@ int main() {
 	glfwMakeContextCurrent(window);
 
 	//glOrtho(0, 1920, 0, 1080, -1, 1);
-	glOrtho(0.f, W, H, 0.f, 0.f, 1.f);
+
+	glViewport(0, 0, W, H);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, W, 0, H, -1, 1);
+		//glOrtho(-2 * ar, 2 * ar, -2, 2, -1, 1);	//glFrustum(-1.0, 1.0, -1.0, 1.0, 1.5, 20.0);
 
 	glfwSetCursorPosCallback(window, cursor_position_callback);
 	//Sets the key callback
@@ -375,19 +405,18 @@ int main() {
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	int rows = 10;
-	int cols = 10;
-
 	float r = 0.5f;
 	int nrcubes = 10;
 
 	for (int i = 0; i < nrcubes; i++) {
-		cube tmp_cube({ r*(float)cos(i*(2*3.1415/nrcubes)), r*(float)sin(i*(2 * 3.1415 / nrcubes)), 0.0f }, { 3.1415f / 2.0f, 3.1415f / 2.0f, 3.1415f / 2.0f });
+		float rand_rot_x = ((float)rand() / (RAND_MAX)) - 0.5f;
+		float rand_rot_y = ((float)rand() / (RAND_MAX)) - 0.5f;
+		float rand_rot_z = ((float)rand() / (RAND_MAX)) - 0.5f;
+
+		cube tmp_cube({ r*(float)cos(i*(2 * 3.1415 / nrcubes)), r*(float)sin(i*(2 * 3.1415 / nrcubes)), 0.0f }, { rand_rot_x * 3.1415f / 2.0f, rand_rot_y * 3.1415f / 2.0f, rand_rot_z * 3.1415f / 2.0f });//{ 3.1415f / 2.0f, 3.1415f / 2.0f, 3.1415f / 2.0f });
 		
 		cubes.push_back(tmp_cube);
 	}
-
-
 
 	const char* vertex_shader =
 		"#version 400\n"
@@ -446,9 +475,6 @@ int main() {
 		// Reset the matrix
 		glMatrixMode(GL_MODELVIEW);
 		glLoadIdentity();
-
-		glRotatef(40, 1.0f, 0.0f, 0.0f); // Rotate our camera on the x-axis (looking up and down)
-		glRotatef(20, 0.0f, 1.0f, 0.0f); // Rotate our camera on the  y-axis (looking left and right)
 
 		//printf("Loop: %d\n", loops);
 
