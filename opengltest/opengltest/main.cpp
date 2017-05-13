@@ -7,6 +7,12 @@
 #include <iostream>
 #include <math.h>
 #include <vector>
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
+
+class cube;
+
+std::vector<cube> cubes;
 
 void rotX(float* m, int nrvectors, float r) {
 	float rot[] = {
@@ -152,7 +158,7 @@ public:
 
 		/*Scaler*/
 		for (auto &a : points) {
-			a = a / 4;
+			a = a / 10;
 		}
 		
 		/*Predefined colors of cube*/
@@ -275,8 +281,61 @@ public:
 };
 
 int cube::nrOfCubes = 0;
+float mpos_x = 0.0;
+float mpos_y = 0.0;
+int W = 1920;
+int H = 1080;
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	mpos_x = xpos;
+	mpos_y = ypos;
+
+	//gluLookAt(xpos, ypos, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+	std::cout << "X: " << xpos << " Y: " << ypos << std::endl;
+}
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	float rand_x = ((float)rand() / (RAND_MAX)) - 0.5f;
+	float rand_y = ((float)rand() / (RAND_MAX)) - 0.5f;
+	float rand_z = ((float)rand() / (RAND_MAX)) - 0.5f;
+
+	float rand_rot_x = ((float)rand() / (RAND_MAX)) - 0.5f;
+	float rand_rot_y = ((float)rand() / (RAND_MAX)) - 0.5f;
+	float rand_rot_z = ((float)rand() / (RAND_MAX)) - 0.5f;
+
+	switch (key) {
+	case GLFW_KEY_1: {
+		cube tmp_cube({ rand_x, rand_y , rand_z }, { rand_rot_x * 3.1415f / 2.0f, rand_rot_y * 3.1415f / 2.0f, rand_rot_z * 3.1415f / 2.0f });
+
+		cubes.push_back(tmp_cube);
+	}
+		break;
+	case GLFW_KEY_2: {
+		cube tmp_cube({ (mpos_x / (float)W)*2.0f - 1.0f, 1.0f - (mpos_y / (float)H)*2.0f, 0.0f }, { rand_rot_x * 3.1415f / 2.0f, rand_rot_y * 3.1415f / 2.0f, rand_rot_z * 3.1415f / 2.0f });
+
+		cubes.push_back(tmp_cube);
+	}
+		break;
+	case GLFW_KEY_LEFT:
+
+		break;
+	case GLFW_KEY_SPACE:
+		cubes.clear();
+		break;
+	default:
+		break;
+	}
+
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, GL_TRUE);
+}
 
 int main() {
+	srand(time(NULL));
+
 	// start GL context and O/S window using the GLFW helper library
 	if (!glfwInit()) {
 		fprintf(stderr, "ERROR: could not start GLFW3\n");
@@ -289,7 +348,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);*/
 
-	GLFWwindow* window = glfwCreateWindow(720, 720, "Cube test", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(W, H, "Cube test", NULL, NULL);
 	if (!window) {
 		fprintf(stderr, "ERROR: could not open window with GLFW3\n");
 		glfwTerminate();
@@ -297,12 +356,17 @@ int main() {
 	}
 	glfwMakeContextCurrent(window);
 
+	//glOrtho(0, 1920, 0, 1080, -1, 1);
+	glOrtho(0.f, W, H, 0.f, 0.f, 1.f);
+
+	glfwSetCursorPosCallback(window, cursor_position_callback);
+	//Sets the key callback
+	glfwSetKeyCallback(window, key_callback);
+
 	// start GLEW extension handler
 	glewExperimental = GL_TRUE;
 	glewInit();
 	//
-
-	std::vector<cube> cubes;
 
 	GLuint vao = 0;
 	glGenVertexArrays(1, &vao);
@@ -311,16 +375,19 @@ int main() {
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
 
-	int rows = 1;
-	int cols = 1;
+	int rows = 10;
+	int cols = 10;
 
-	for (int r = 0; r < rows; r++) {
-		for (int c = 0; c < cols; c++) {
-			cube tmp_cube({ -1.0f+(1.0f / (float)cols) + (float)c*(2.0f / (float)cols), -1.0f+(1.0f / (float)rows) + (float)r*(2.0f / (float)rows), 0.0f }, { 3.1415f/2.0f, 3.1415f / 2.0f, 3.1415f / 2.0f });
+	float r = 0.5f;
+	int nrcubes = 10;
 
-			cubes.push_back(tmp_cube);
-		}
+	for (int i = 0; i < nrcubes; i++) {
+		cube tmp_cube({ r*(float)cos(i*(2*3.1415/nrcubes)), r*(float)sin(i*(2 * 3.1415 / nrcubes)), 0.0f }, { 3.1415f / 2.0f, 3.1415f / 2.0f, 3.1415f / 2.0f });
+		
+		cubes.push_back(tmp_cube);
 	}
+
+
 
 	const char* vertex_shader =
 		"#version 400\n"
@@ -376,6 +443,13 @@ int main() {
 	while (!glfwWindowShouldClose(window)) {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		// Reset the matrix
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+
+		glRotatef(40, 1.0f, 0.0f, 0.0f); // Rotate our camera on the x-axis (looking up and down)
+		glRotatef(20, 0.0f, 1.0f, 0.0f); // Rotate our camera on the  y-axis (looking left and right)
+
 		//printf("Loop: %d\n", loops);
 
 		glUseProgram(shader_programme);
@@ -394,8 +468,12 @@ int main() {
 		for (cube &a : cubes) {
 			a.update((float)timeStepMs/1000.0);
 
+
 			glDrawArrays(GL_TRIANGLES, 0, a.getNumberOfPoints()/3);
 		}
+
+
+
 
 		/*c.update();
 
